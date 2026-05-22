@@ -2,7 +2,7 @@ import fs from 'fs';
 import pdf from 'pdf-parse';
 
 /**
- * Professional PDF parsing service
+ * Professional PDF parsing service using pdf-parse
  */
 class PDFService {
   /**
@@ -58,8 +58,8 @@ class PDFService {
     return text
       // Remove excessive whitespace
       .replace(/\s+/g, ' ')
-      // Remove special characters
-      .replace(/[^\w\s.,!?\-@#$%&*()]/g, '')
+      // Remove special characters (keep important ones)
+      .replace(/[^\w\s.,!?\-@#$%&*()\/]/g, '')
       // Remove extra spaces around punctuation
       .replace(/\s+([.,!?])/g, '$1')
       // Trim whitespace
@@ -100,7 +100,7 @@ class PDFService {
       wordCount: words.length,
       characterCount: characters,
       sentenceCount: sentences.length,
-      avgWordLength: words.length > 0 ? characters / words.length : 0,
+      avgWordLength: words.length > 0 ? Math.round(characters / words.length) : 0,
       estimatedReadTime: Math.ceil(words.length / 200) // minutes
     };
   }
