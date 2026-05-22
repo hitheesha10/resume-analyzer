@@ -43,11 +43,31 @@ app.use("/resume", resumeRoutes);
 // Error handling
 app.use(notFound);
 app.use(errorHandler);
+// Global error handlers for production
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 http://localhost:${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
-});
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("✅ MongoDB Connected");
+    // IMPORTANT: Listen on '0.0.0.0' for Render
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`📍 http://localhost:${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("❌ MongoDB Error:", err.message);
+    // Still start server even without MongoDB for testing
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`⚠️ Server running without MongoDB on port ${PORT}`);
+    });
+  });
