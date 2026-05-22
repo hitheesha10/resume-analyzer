@@ -1,0 +1,35 @@
+.theme-toggle {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 500;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+}
+
+.toggle-icon {
+  font-size: 1.2rem;
+}
+
+.toggle-text {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .theme-toggle {
+    padding: 6px 12px;
+  }
+  .toggle-text {
+    display: none;
+  }
+}
