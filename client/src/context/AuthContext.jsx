@@ -20,11 +20,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const register = async (name, email, password) => {
+    console.log("Register API call with:", { name, email, password });
     const response = await api.post("/auth/register", { name, email, password });
+    console.log("Register API response:", response.data);
     return response.data;
   };
 
   const login = async (email, password) => {
+    console.log("Login API call with:", { email, password });
     const response = await api.post("/auth/login", { email, password });
     const { token, user } = response.data;
     localStorage.setItem("token", token);

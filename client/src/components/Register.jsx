@@ -13,7 +13,6 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,8 +20,15 @@ const Register = () => {
     setError("");
     setSuccess("");
     
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    // Validation
+    if (!name.trim()) {
+      setError("Name is required");
+      setLoading(false);
+      return;
+    }
+    
+    if (!email.trim()) {
+      setError("Email is required");
       setLoading(false);
       return;
     }
@@ -33,12 +39,22 @@ const Register = () => {
       return;
     }
     
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+    
     try {
-      await register(name, email, password);
+      console.log("Sending registration request...");
+      const response = await register(name, email, password);
+      console.log("Registration response:", response);
       setSuccess("Registration successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      setError(err.response?.data?.error || "Registration failed");
+      console.error("Registration error:", err);
+      console.error("Error response:", err.response);
+      setError(err.response?.data?.error || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -48,7 +64,7 @@ const Register = () => {
     <div className="auth-container fade-in">
       <div className="auth-card glass">
         <div className="auth-header">
-          <div className="auth-icon">🌿</div>
+          <div className="auth-icon">📝</div>
           <h2>Create Account</h2>
           <p className="auth-subtitle">Join thousands of successful job seekers</p>
         </div>
@@ -58,7 +74,7 @@ const Register = () => {
         
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label>Full Name</label>
+            <label>Full Name *</label>
             <input
               type="text"
               placeholder="Enter your full name"
@@ -69,7 +85,7 @@ const Register = () => {
           </div>
           
           <div className="input-group">
-            <label>Email Address</label>
+            <label>Email Address *</label>
             <input
               type="email"
               placeholder="Enter your email"
@@ -80,29 +96,20 @@ const Register = () => {
           </div>
           
           <div className="input-group">
-            <label>Password</label>
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Create a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button 
-                type="button" 
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
+            <label>Password *</label>
+            <input
+              type="password"
+              placeholder="Create a password (min 6 characters)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
           
           <div className="input-group">
-            <label>Confirm Password</label>
+            <label>Confirm Password *</label>
             <input
-              type={showPassword ? "text" : "password"}
+              type="password"
               placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -111,24 +118,13 @@ const Register = () => {
           </div>
           
           <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner-small"></span>
-                Creating Account...
-              </>
-            ) : (
-              "Create Account"
-            )}
+            {loading ? "Creating Account..." : "Register"}
           </button>
         </form>
         
         <p className="auth-link">
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
-        
-        <div className="auth-footer">
-          <p>By signing up, you agree to our Terms and Privacy Policy</p>
-        </div>
       </div>
     </div>
   );
