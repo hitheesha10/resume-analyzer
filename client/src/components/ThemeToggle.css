@@ -1,35 +1,45 @@
 .theme-toggle {
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  border: none;
-  padding: 8px 16px;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  width: 44px;
+  height: 44px;
+
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: white;
-  font-weight: 500;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+
+  background: rgba(49, 130, 206, 0.12);
+
+  color: var(--primary);
+
+  cursor: pointer;
+
+  transition: all 0.35s ease;
+
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 6px 18px rgba(49, 130, 206, 0.12);
 }
 
 .theme-toggle:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(
+    135deg,
+    var(--primary),
+    var(--primary-light)
+  );
+
+  color: white;
+
+  transform: rotate(15deg) scale(1.08);
+
+  box-shadow: 0 10px 25px rgba(49, 130, 206, 0.25);
 }
 
-.toggle-icon {
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.theme-toggle svg {
   font-size: 1.2rem;
-}
-
-.toggle-text {
-  font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-  .theme-toggle {
-    padding: 6px 12px;
-  }
-  .toggle-text {
-    display: none;
-  }
 }

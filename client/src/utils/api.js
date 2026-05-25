@@ -1,42 +1,27 @@
 import axios from "axios";
 
-// Use environment variable or fallback
-const API_URL = import.meta.env.VITE_API_URL || "https://resumescore-api-production.up.railway.app";
-
-console.log("API_URL:", API_URL);
+// Change this to your LIVE backend URL when deployed
+// For development: http://localhost:5000
+// For production: https://your-backend-url.onrender.com
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000"||"";
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  timeout: 60000,
+  headers: { "Content-Type": "application/json" },
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    console.log(`Request: ${config.method.toUpperCase()} ${config.url}`);
-    return config;
-  },
-  (error) => {
-    console.error("Request error:", error);
-    return Promise.reject(error);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    console.log(`Response: ${response.status} ${response.config.url}`);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error("Response error:", error.response?.status, error.response?.data);
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");

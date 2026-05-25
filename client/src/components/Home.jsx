@@ -1,150 +1,304 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import "./Home.css";
+import React, { useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { motion, useInView, useAnimation } from 'framer-motion'
+import './Home.css'
 
 const Home = () => {
-  const { isAuthenticated } = useAuth();
-  const [animated, setAnimated] = useState(false);
-  const [currentStatIndex, setCurrentStatIndex] = useState(0);
+  const { isAuthenticated } = useAuth()
+  const [animated, setAnimated] = useState(false)
+  const controls = useAnimation()
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true })
 
   useEffect(() => {
-    setAnimated(true);
-    
-    const interval = setInterval(() => {
-      setCurrentStatIndex((prev) => (prev + 1) % stats.length);
-    }, 3000);
-    
-    return () => clearInterval(interval);
-  }, []);
+    setAnimated(true)
+    if (inView) {
+      controls.start('visible')
+    }
+  }, [controls, inView])
 
+  // Stats Data
   const stats = [
-    { number: "90%+", label: "Fortune 500 companies use ATS", icon: "🏢" },
-    { number: "75%", label: "Resumes rejected by ATS", icon: "📊" },
-    { number: "6s", label: "Average recruiter scan time", icon: "⏱️" }
-  ];
+    { value: '90%+', label: 'Fortune 500 Companies Use ATS', icon: '🏢', delay: 0.1 },
+    { value: '75%', label: 'Resumes Rejected by ATS', icon: '📊', delay: 0.2 },
+    { value: '6s', label: 'Average Recruiter Scan Time', icon: '⏱️', delay: 0.3 },
+    { value: '10K+', label: 'Resumes Analyzed', icon: '📄', delay: 0.4 }
+  ]
 
+  // Features Data
   const features = [
-    { icon: "📄", title: "Upload Resume", desc: "Upload your PDF resume for instant analysis", color: "#3b82f6" },
-    { icon: "📝", title: "Paste Job Description", desc: "Add the job description you're targeting", color: "#2563eb" },
-    { icon: "🤖", title: "AI Analysis", desc: "Get detailed ATS score and improvement suggestions", color: "#1d4ed8" },
-    { icon: "✨", title: "Optimize", desc: "Apply AI-powered recommendations", color: "#1e3a8a" }
-  ];
+    {
+      icon: '📄',
+      title: 'Upload Resume',
+      description: 'Upload your PDF resume for instant AI-powered analysis',
+      color: '#2563eb',
+      delay: 0.1
+    },
+    {
+      icon: '📝',
+      title: 'Paste Job Description',
+      description: 'Add the job description you\'re targeting for comparison',
+      color: '#3b82f6',
+      delay: 0.2
+    },
+    {
+      icon: '🤖',
+      title: 'AI Analysis',
+      description: 'Get detailed ATS score and intelligent improvement suggestions',
+      color: '#60a5fa',
+      delay: 0.3
+    },
+    {
+      icon: '✨',
+      title: 'Optimize Resume',
+      description: 'Apply AI-powered recommendations to boost your ATS score',
+      color: '#1d4ed8',
+      delay: 0.4
+    }
+  ]
 
+  // Testimonials Data
   const testimonials = [
-    { name: "Sarah Johnson", role: "Frontend Developer", text: "This tool helped me land interviews at 3 top companies!", rating: 5, avatar: "👩‍💻" },
-    { name: "Michael Chen", role: "Full Stack Engineer", text: "My resume score went from 45% to 85% after following the tips!", rating: 5, avatar: "👨‍💻" },
-    { name: "Emily Rodriguez", role: "Product Manager", text: "Finally understood why I wasn't getting calls. Game changer!", rating: 5, avatar: "👩‍💼" }
-  ];
+    {
+      name: 'Sarah Johnson',
+      role: 'Frontend Developer',
+      company: 'Google',
+      text: 'ResumeScore helped me land interviews at 3 top companies within 2 weeks! The AI suggestions were spot-on.',
+      rating: 5,
+      avatar: '👩‍💻',
+      delay: 0.1
+    },
+    {
+      name: 'Michael Chen',
+      role: 'Full Stack Engineer',
+      company: 'Microsoft',
+      text: 'My resume score went from 45% to 85% after following the optimization tips. Game changer!',
+      rating: 5,
+      avatar: '👨‍💻',
+      delay: 0.2
+    },
+    {
+      name: 'Emily Rodriguez',
+      role: 'Product Manager',
+      company: 'Amazon',
+      text: 'Finally understood why I wasn\'t getting calls. The keyword analysis is incredibly accurate.',
+      rating: 5,
+      avatar: '👩‍💼',
+      delay: 0.3
+    }
+  ]
+
+  // Container Variants for Stagger Animation
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, delayChildren: 0.2 }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { duration: 0.6, type: 'spring', stiffness: 100 }
+    }
+  }
 
   return (
-    <div className={`home ${animated ? 'fade-in-up' : ''}`}>
+    <div className="home">
       {/* Hero Section */}
-      <div className="hero">
-        <div className="hero-badge float">
-          <span>✨ AI-Powered ATS Analyzer</span>
-        </div>
-        <h1 className="gradient-text">
-          Boost Your Resume Score
-          <br />
-          <span className="highlight">Get More Interviews</span>
-        </h1>
-        <p className="subtitle">
-          Join thousands of job seekers who improved their resume ATS score by an average of 45%
-        </p>
-        
-        <div className="hero-buttons">
-          {!isAuthenticated ? (
-            <>
-              <Link to="/register" className="btn-primary">
-                Get Started Free <span>→</span>
-              </Link>
-              <Link to="/login" className="btn-secondary">
-                Sign In
-              </Link>
-            </>
-          ) : (
-            <Link to="/resumes" className="btn-primary">
-              Analyze Your Resume <span>→</span>
-            </Link>
-          )}
+      <section className="hero-section">
+        <div className="hero-bg">
+          <div className="gradient-orb orb-1"></div>
+          <div className="gradient-orb orb-2"></div>
+          <div className="gradient-orb orb-3"></div>
         </div>
         
-        <div className="stats-carousel">
-          <div className="stat-card floating-stat">
-            <div className="stat-icon">{stats[currentStatIndex].icon}</div>
-            <div className="stat-number">{stats[currentStatIndex].number}</div>
-            <div className="stat-label">{stats[currentStatIndex].label}</div>
-          </div>
+        <div className="container">
+          <motion.div 
+            className="hero-content"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, type: 'spring' }}
+          >
+            <motion.div 
+              className="hero-badge"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              <span className="badge-icon">✨</span>
+              AI-Powered Resume Optimization
+            </motion.div>
+            
+            <h1 className="hero-title">
+              Boost Your Resume Score
+              <span className="gradient-text"> Get More Interviews</span>
+            </h1>
+            
+            <p className="hero-subtitle">
+              Join over 10,000+ job seekers who improved their ATS score by an average of 45%
+            </p>
+            
+            <motion.div 
+              className="hero-buttons"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/register" className="btn-primary">
+                    Get Started Free <span className="arrow">→</span>
+                  </Link>
+                  <Link to="/login" className="btn-outline">
+                    Sign In
+                  </Link>
+                </>
+              ) : (
+                <Link to="/dashboard" className="btn-primary">
+                  Go to Dashboard <span className="arrow">→</span>
+                </Link>
+              )}
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
-
-      {/* Features Section */}
-      <div className="features-section">
-        <h2>How ResumeScore Works</h2>
-        <div className="feature-grid">
-          {features.map((feature, index) => (
-            <div key={index} className="feature-card" style={{ '--hover-color': feature.color }}>
-              <div className="feature-icon">{feature.icon}</div>
-              <h3>{feature.title}</h3>
-              <p>{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
 
       {/* Stats Section */}
-      <div className="stats-section">
-        <div className="stats-grid">
-          <div className="stat-item">
-            <div className="stat-value">10K+</div>
-            <div className="stat-label">Resumes Analyzed</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">85%</div>
-            <div className="stat-label">Average Score Increase</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">5000+</div>
-            <div className="stat-label">Happy Users</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">98%</div>
-            <div className="stat-label">Success Rate</div>
-          </div>
+      <section className="stats-section">
+        <div className="container">
+          <motion.div 
+            className="stats-grid"
+            ref={ref}
+            variants={containerVariants}
+            initial="hidden"
+            animate={controls}
+          >
+            {stats.map((stat, index) => (
+              <motion.div 
+                key={index} 
+                className="stat-card"
+                variants={itemVariants}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+              >
+                <div className="stat-icon">
+                  <span>{stat.icon}</span>
+                </div>
+                <div className="stat-value">{stat.value}</div>
+                <div className="stat-label">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
-      </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="features-section">
+        <div className="container">
+          <motion.div 
+            className="features-header"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <h2>How ResumeScore Works</h2>
+            <p>Four simple steps to optimize your resume</p>
+          </motion.div>
+
+          <motion.div 
+            className="features-grid"
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            {features.map((feature, index) => (
+              <motion.div 
+                key={index} 
+                className="feature-card"
+                variants={itemVariants}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+              >
+                <div className="feature-icon" style={{ background: `${feature.color}15` }}>
+                  <span>{feature.icon}</span>
+                </div>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+                <div className="feature-number">{String(index + 1).padStart(2, '0')}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
 
       {/* Testimonials Section */}
-      <div className="testimonials-section">
-        <h2>What Our Users Say</h2>
-        <div className="testimonial-grid">
-          {testimonials.map((testimonial, index) => (
-            <div key={index} className="testimonial-card">
-              <div className="testimonial-avatar">{testimonial.avatar}</div>
-              <div className="testimonial-rating">
-                {"⭐".repeat(testimonial.rating)}
-              </div>
-              <p className="testimonial-text">"{testimonial.text}"</p>
-              <div className="testimonial-name">{testimonial.name}</div>
-              <div className="testimonial-role">{testimonial.role}</div>
-            </div>
-          ))}
+      <section className="testimonials-section">
+        <div className="container">
+          <motion.div 
+            className="testimonials-header"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <h2>Success Stories</h2>
+            <p>Hear from our happy users</p>
+          </motion.div>
+
+          <motion.div 
+            className="testimonials-grid"
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
+            {testimonials.map((testimonial, index) => (
+              <motion.div 
+                key={index} 
+                className="testimonial-card"
+                variants={itemVariants}
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              >
+                <div className="testimonial-avatar">{testimonial.avatar}</div>
+                <div className="testimonial-rating">
+                  {'⭐'.repeat(testimonial.rating)}
+                </div>
+                <p className="testimonial-text">"{testimonial.text}"</p>
+                <div className="testimonial-name">{testimonial.name}</div>
+                <div className="testimonial-role">{testimonial.role}</div>
+                <div className="testimonial-company">{testimonial.company}</div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
-      </div>
+      </section>
 
       {/* CTA Section */}
       {!isAuthenticated && (
-        <div className="cta-section">
-          <h2>Ready to Boost Your Career?</h2>
-          <p>Start optimizing your resume today and stand out to recruiters</p>
-          <Link to="/register" className="btn-primary cta-btn">
-            Start Now - It's Free <span>🚀</span>
-          </Link>
-        </div>
+        <section className="cta-section">
+          <div className="container">
+            <motion.div 
+              className="cta-content"
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <h2>Ready to Boost Your Career?</h2>
+              <p>Start optimizing your resume today and stand out to recruiters</p>
+              <Link to="/register" className="btn-primary cta-btn">
+                Start Now - It's Free <span className="rocket">🚀</span>
+              </Link>
+            </motion.div>
+          </div>
+        </section>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home

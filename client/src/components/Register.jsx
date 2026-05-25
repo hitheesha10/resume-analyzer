@@ -1,133 +1,89 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import "./Register.css";
+import React, { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { motion } from 'framer-motion'
+import './Register.css'
 
 const Register = () => {
-  const navigate = useNavigate();
-  const { register } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const navigate = useNavigate()
+  const { register } = useAuth()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess("");
-    
-    // Validation
-    if (!name.trim()) {
-      setError("Name is required");
-      setLoading(false);
-      return;
-    }
-    
-    if (!email.trim()) {
-      setError("Email is required");
-      setLoading(false);
-      return;
-    }
-    
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      setLoading(false);
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
-    
+    e.preventDefault()
+    setLoading(true)
+    setError('')
     try {
-      console.log("Sending registration request...");
-      const response = await register(name, email, password);
-      console.log("Registration response:", response);
-      setSuccess("Registration successful! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 2000);
+      await register(name, email, password)
+      navigate('/login')
     } catch (err) {
-      console.error("Registration error:", err);
-      console.error("Error response:", err.response);
-      setError(err.response?.data?.error || "Registration failed. Please try again.");
+      setError(err.response?.data?.error || 'Registration failed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="auth-container fade-in">
-      <div className="auth-card glass">
-        <div className="auth-header">
-          <div className="auth-icon">📝</div>
-          <h2>Create Account</h2>
-          <p className="auth-subtitle">Join thousands of successful job seekers</p>
-        </div>
-        
-        {error && <div className="error-text">{error}</div>}
-        {success && <div className="success-text">{success}</div>}
-        
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label>Full Name *</label>
-            <input
-              type="text"
-              placeholder="Enter your full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+    <div className="auth-page">
+      <div className="auth-container">
+        <motion.div 
+          className="auth-card"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="auth-header">
+            <div className="auth-icon">✨</div>
+            <h2>Create Account</h2>
+            <p>Join thousands of successful job seekers</p>
           </div>
           
-          <div className="input-group">
-            <label>Email Address *</label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          {error && <div className="error-message">{error}</div>}
           
-          <div className="input-group">
-            <label>Password *</label>
-            <input
-              type="password"
-              placeholder="Create a password (min 6 characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="input-group">
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required 
+              />
+            </div>
+            <div className="input-group">
+              <input 
+                type="email" 
+                placeholder="Email Address" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required 
+              />
+            </div>
+            <div className="input-group">
+              <input 
+                type="password" 
+                placeholder="Password (min 6 characters)" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required 
+              />
+            </div>
+            <button type="submit" className="auth-btn" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Sign Up'}
+            </button>
+          </form>
           
-          <div className="input-group">
-            <label>Confirm Password *</label>
-            <input
-              type="password"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-          
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Creating Account..." : "Register"}
-          </button>
-        </form>
-        
-        <p className="auth-link">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
+          <p className="auth-footer">
+            Already have an account? <Link to="/login">Sign In</Link>
+          </p>
+        </motion.div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Register;
+export default Register

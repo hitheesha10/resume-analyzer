@@ -1,196 +1,137 @@
-import React, { useState } from "react";
-import "./Contact.css";
+import React, { useState } from 'react'
+import { motion } from 'framer-motion'
+import { toast } from 'react-toastify'
+import './Contact.css'
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: ""
-  });
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' })
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Contact form submitted:", formData);
-    setSubmitted(true);
-    setFormData({ name: "", email: "", subject: "", message: "" });
-    setLoading(false);
-    setTimeout(() => setSubmitted(false), 5000);
-  };
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    toast.success('Message sent! We\'ll get back to you soon.')
+    setFormData({ name: '', email: '', message: '' })
+    setLoading(false)
+  }
+
+  const contactInfo = [
+    { icon: '📧', title: 'Email', value: 'support@resumescore.com', detail: '24/7 Response' },
+    { icon: '💬', title: 'Live Chat', value: 'Available 9am-5pm EST', detail: 'Instant replies' },
+    { icon: '📍', title: 'Office', value: 'San Francisco, CA', detail: 'Remote worldwide' }
+  ]
 
   return (
-    <div className="contact-container fade-in">
-      <div className="contact-header">
-        <h1>Get in Touch</h1>
-        <p>We'd love to hear from you! Send us a message and we'll respond within 24 hours.</p>
-      </div>
+    <div className="contact-page">
+      <div className="container">
+        <motion.div 
+          className="contact-header"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1>Get in Touch</h1>
+          <p>Have questions? We'd love to hear from you</p>
+        </motion.div>
 
-      <div className="contact-grid">
-        {/* Left Side - Contact Info */}
-        <div className="contact-info glass">
-          <h3>📬 Contact Information</h3>
-          
-          <div className="info-items">
-            <div className="info-item">
-              <div className="info-icon">📧</div>
-              <div>
-                <h4>Email</h4>
-                <p>support@greenats.com</p>
-                <span className="info-detail">Response within 24h</span>
+        <div className="contact-grid">
+          <motion.div 
+            className="contact-info"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2>Contact Information</h2>
+            <div className="info-items">
+              {contactInfo.map((info, idx) => (
+                <div key={idx} className="info-item">
+                  <div className="info-icon">{info.icon}</div>
+                  <div>
+                    <h3>{info.title}</h3>
+                    <p>{info.value}</p>
+                    <span className="info-detail">{info.detail}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="social-links">
+              <h3>Follow Us</h3>
+              <div className="social-icons">
+                <a href="#" className="social-icon">🐦</a>
+                <a href="#" className="social-icon">📘</a>
+                <a href="#" className="social-icon">📷</a>
+                <a href="#" className="social-icon">💼</a>
               </div>
             </div>
-            
-            <div className="info-item">
-              <div className="info-icon">📞</div>
-              <div>
-                <h4>Phone</h4>
-                <p>+1 (555) 123-4567</p>
-                <span className="info-detail">Mon-Fri, 9am-5pm EST</span>
-              </div>
-            </div>
-            
-            <div className="info-item">
-              <div className="info-icon">💬</div>
-              <div>
-                <h4>Live Chat</h4>
-                <p>Available 24/7</p>
-                <span className="info-detail">Click the chat bubble</span>
-              </div>
-            </div>
-            
-            <div className="info-item">
-              <div className="info-icon">📍</div>
-              <div>
-                <h4>Office</h4>
-                <p>123 Green Street, Suite 100</p>
-                <span className="info-detail">San Francisco, CA 94105</span>
-              </div>
-            </div>
-          </div>
+          </motion.div>
 
-          <div className="social-links">
-            <h4>Follow Us</h4>
-            <div className="social-icons">
-              <a href="#" className="social-icon">📘</a>
-              <a href="#" className="social-icon">🐦</a>
-              <a href="#" className="social-icon">📷</a>
-              <a href="#" className="social-icon">💼</a>
-              <a href="#" className="social-icon">🎥</a>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Contact Form */}
-        <div className="contact-form glass">
-          <h3>📝 Send us a Message</h3>
-          
-          {submitted && (
-            <div className="success-message">
-              ✓ Thank you for your message! We'll get back to you soon.
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Your Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Email Address *</label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="john@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-            
+          <motion.form 
+            className="contact-form"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            onSubmit={handleSubmit}
+          >
+            <h2>Send a Message</h2>
             <div className="form-group">
-              <label>Subject *</label>
-              <input
-                type="text"
-                name="subject"
-                placeholder="How can we help you?"
-                value={formData.subject}
-                onChange={handleChange}
+              <input 
+                type="text" 
+                placeholder="Your Name" 
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
                 required
               />
             </div>
-            
             <div className="form-group">
-              <label>Message *</label>
-              <textarea
-                name="message"
-                placeholder="Tell us about your question or concern..."
-                rows={5}
+              <input 
+                type="email" 
+                placeholder="Your Email" 
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <textarea 
+                rows={5} 
+                placeholder="Your Message"
                 value={formData.message}
-                onChange={handleChange}
+                onChange={(e) => setFormData({...formData, message: e.target.value})}
                 required
               ></textarea>
             </div>
-            
             <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? (
-                <>
-                  <span className="spinner-small"></span>
-                  Sending...
-                </>
-              ) : (
-                <>
-                  Send Message
-                  <span className="send-icon">📤</span>
-                </>
-              )}
+              {loading ? 'Sending...' : 'Send Message'}
             </button>
-          </form>
+          </motion.form>
         </div>
-      </div>
 
-      {/* FAQ Section */}
-      <div className="faq-section glass">
-        <h3>❓ Frequently Asked Questions</h3>
-        <div className="faq-grid">
-          <div className="faq-item">
-            <h4>How does the ATS analysis work?</h4>
-            <p>Our AI compares your resume keywords against the job description to calculate a compatibility score.</p>
+        <motion.div 
+          className="faq-section"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <h2>Frequently Asked Questions</h2>
+          <div className="faq-grid">
+            <div className="faq-item">
+              <h3>How does the analysis work?</h3>
+              <p>Our AI compares your resume keywords against the job description to calculate an ATS compatibility score.</p>
+            </div>
+            <div className="faq-item">
+              <h3>Is my data secure?</h3>
+              <p>Yes! We use 256-bit encryption and never share your personal information.</p>
+            </div>
+            <div className="faq-item">
+              <h3>What file formats are supported?</h3>
+              <p>We currently support PDF files for resume uploads.</p>
+            </div>
           </div>
-          <div className="faq-item">
-            <h4>Is my data secure?</h4>
-            <p>Yes! We use 256-bit encryption and never share your personal information.</p>
-          </div>
-          <div className="faq-item">
-            <h4>Can I analyze multiple resumes?</h4>
-            <p>Absolutely! Premium users can analyze unlimited resumes and track their history.</p>
-          </div>
-          <div className="faq-item">
-            <h4>What file formats are supported?</h4>
-            <p>We currently support PDF files for resume uploads.</p>
-          </div>
-        </div>
+        </motion.div>
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default Contact;

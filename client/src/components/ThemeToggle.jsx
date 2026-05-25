@@ -1,16 +1,20 @@
-import React from 'react';
-import { useTheme } from '../context/ThemeContext';
-import './ThemeToggle.css';
+import React from 'react'
+import { useTheme } from '../context/ThemeContext'
+import { motion } from 'framer-motion'
 
 const ThemeToggle = () => {
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode, toggleDarkMode } = useTheme()
 
   return (
-    <button className="theme-toggle" onClick={toggleDarkMode}>
-      <span className="toggle-icon">{darkMode ? '☀️' : '🌙'}</span>
-      <span className="toggle-text">{darkMode ? 'Light' : 'Dark'}</span>
-    </button>
-  );
-};
+    <motion.button 
+      className="theme-toggle"
+      onClick={toggleDarkMode}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {darkMode ? '☀️' : '🌙'}
+    </motion.button>
+  )
+}
 
-export default ThemeToggle;
+export default ThemeToggle
