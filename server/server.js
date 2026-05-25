@@ -3,171 +3,121 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import Database from './config/database.js';
+import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
-import { errorHandler, notFound } from './middleware/errorMiddleware.js';
-import { generalLimiter } from './middleware/rateLimiter.js';
-import logger from './utils/logger.js';
 
-// Load environment variables
 dotenv.config();
 
-// Initialize Express app
 const app = express();
 
 // ============ SECURITY MIDDLEWARE ============
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 // ============ CORS CONFIGURATION ============
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:5000',
   'https://*.netlify.app',
-  'https://*.vercel.app',
-  process.env.CLIENT_URL
-].filter(Boolean);
+  'https://*.vercel.app'
+];
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    
     const isAllowed = allowedOrigins.some(pattern => {
-      if (pattern && pattern.includes('*')) {
+      if (pattern.includes('*')) {
         const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
         return regex.test(origin);
       }
       return pattern === origin;
     });
-    
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('CORS not allowed'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ============ LOGGING MIDDLEWARE ============
-app.use(morgan('combined', {
-  stream: { write: (message) => logger.info(message.trim()) }
-}));
-
-// ============ BODY PARSING MIDDLEWARE ============
+// ============ LOGGING & PARSING ============
+app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ============ RATE LIMITING ============
-app.use('/api', generalLimiter);
-
-// ============ HEALTH CHECK ENDPOINT ============
+// ============ HEALTH CHECK ============
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    memory: process.memoryUsage(),
-    version: '2.0.0'
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// ============ API INFO ENDPOINT ============
+// ============ API ROOT ============
 app.get('/', (req, res) => {
   res.json({
     success: true,
     name: 'ResumeScore API',
-    version: '2.0.0',
+    version: '3.0.0',
     description: 'AI-Powered Resume ATS Analyzer',
     endpoints: {
       auth: {
         register: 'POST /auth/register',
-        login: 'POST /auth/login',
-        me: 'GET /auth/me',
-        stats: 'GET /auth/stats'
+        login: 'POST /auth/login'
       },
       resume: {
         upload: 'POST /resume/upload',
         analyze: 'POST /resume/analyze',
-        history: 'GET /resume/history',
-        stats: 'GET /resume/stats',
-        getById: 'GET /resume/:id',
-        delete: 'DELETE /resume/:id'
+        history: 'GET /resume/history'
       },
       health: 'GET /health'
-    },
-    documentation: 'https://github.com/yourusername/resume-analyzer'
+    }
   });
 });
 
-// ============ API ROUTES ============
+// ============ ROUTES ============
 app.use('/auth', authRoutes);
 app.use('/resume', resumeRoutes);
 
-// ============ ERROR HANDLING MIDDLEWARE ============
-app.use(notFound);
-app.use(errorHandler);
+// ============ 404 HANDLER ============
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Route not found: ${req.method} ${req.url}`
+  });
+});
 
-// ============ START SERVER ============
+// ============ ERROR HANDLER ============
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(500).json({
+    success: false,
+    error: err.message || 'Internal server error'
+  });
+});
+
+// ============ DATABASE CONNECTION & SERVER START ============
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
-  try {
-    // Connect to database
-    await Database.connect();
-    
-    // Start listening
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB Connected Successfully');
     app.listen(PORT, '0.0.0.0', () => {
-      logger.info(`🚀 Server running on port ${PORT}`);
-      logger.info(`📍 http://localhost:${PORT}`);
-      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`📝 Health check: http://localhost:${PORT}/health`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📍 http://localhost:${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
-  } catch (error) {
-    logger.error(`Failed to start server: ${error.message}`);
+  })
+  .catch(err => {
+    console.error('❌ MongoDB Connection Failed:', err.message);
     process.exit(1);
-  }
-};
-
-// Start the server
-startServer();
-
-// ============ GRACEFUL SHUTDOWN ============
-const shutdown = async (signal) => {
-  logger.info(`${signal} received. Shutting down gracefully...`);
-  
-  try {
-    await Database.disconnect();
-    logger.info('Database disconnected');
-    process.exit(0);
-  } catch (error) {
-    logger.error(`Error during shutdown: ${error.message}`);
-    process.exit(1);
-  }
-};
-
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  logger.error(`Uncaught Exception: ${error.message}`);
-  logger.error(error.stack);
-  shutdown('UNCAUGHT_EXCEPTION');
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
-});
+  });
 
 export default app;

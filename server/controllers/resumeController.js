@@ -1,502 +1,345 @@
 import Resume from '../models/Resume.js';
-import PDFService from '../services/pdfService.js';
-import KeywordService from '../services/keywordService.js';
-import ATSService from '../services/atsService.js';
-import GeminiService from '../services/geminiService.js';
-import logger from '../utils/logger.js';
-import { formatApiResponse, truncateText } from '../utils/helpers.js';
-import { RESUME_STATUS, SCORE_GRADES } from '../config/constants.js';
+import pdf from 'pdf-parse';
 
-/**
- * Resume Controller
- * Handles resume upload, analysis, and history with AI integration
- */
-class ResumeController {
-  /**
-   * Upload and parse resume PDF
-   * @route POST /resume/upload
-   */
-  async upload(req, res, next) {
-    try {
-      if (!req.file) {
-        return res.status(400).json(
-          formatApiResponse(false, null, 'Please upload a PDF file')
-        );
-      }
+// ============ HELPER FUNCTIONS ============
 
-      // Validate PDF
-      const validation = PDFService.validatePDF(req.file.buffer);
-      if (!validation.valid) {
-        return res.status(400).json(
-          formatApiResponse(false, null, validation.error)
-        );
-      }
+// Parse PDF from buffer
+async function parsePDF(fileBuffer) {
+  try {
+    const data = await pdf(fileBuffer);
+    return data.text.replace(/\s+/g, ' ').trim();
+  } catch (error) {
+    console.error('PDF Parse Error:', error);
+    throw new Error('Failed to parse PDF. Please ensure it is a valid PDF file.');
+  }
+}
 
-      // Parse PDF
-      const result = await PDFService.parseBuffer(req.file.buffer);
-      
-      if (!result.success) {
-        return res.status(400).json(
-          formatApiResponse(false, null, result.error)
-        );
-      }
+// Extract keywords from text
+function extractKeywords(text) {
+  if (!text || typeof text !== 'string') return [];
+  
+  const words = text.toLowerCase().match(/\b[a-z0-9]{3,}\b/g) || [];
+  
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'this', 'that', 'are', 'was', 'were',
+    'have', 'has', 'had', 'but', 'not', 'you', 'your', 'from', 'they',
+    'will', 'can', 'all', 'been', 'our', 'their', 'about', 'what',
+    'which', 'when', 'where', 'who', 'how', 'could', 'would', 'should',
+    'use', 'using', 'used', 'able', 'also', 'being', 'than', 'then'
+  ]);
+  
+  return [...new Set(words.filter(word => !stopWords.has(word)))];
+}
 
-      // Get text statistics
-      const stats = PDFService.getTextStats(result.text);
-
-      logger.info(`Resume uploaded: ${req.file.originalname} by user ${req.user.id}`);
-
-      res.json(
-        formatApiResponse(true, {
-          text: result.text,
-          preview: result.text.substring(0, 500),
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          metadata: {
-            pageCount: result.metadata.pageCount,
-            ...stats
-          }
-        }, 'Resume uploaded and parsed successfully')
-      );
-
-    } catch (error) {
-      logger.error(`Upload error: ${error.message}`);
-      next(error);
+// Calculate ATS compatibility score
+function calculateATSScore(jdKeywords, resumeKeywords) {
+  if (!jdKeywords.length) {
+    return {
+      score: 0,
+      totalKeywords: 0,
+      matchingKeywords: 0,
+      matchPercentage: 0,
+      missingKeywords: [],
+      matchedKeywords: []
+    };
+  }
+  
+  const uniqueJD = [...new Set(jdKeywords)];
+  const resumeSet = new Set(resumeKeywords);
+  
+  const matchedKeywords = uniqueJD.filter(keyword => resumeSet.has(keyword));
+  const missingKeywords = uniqueJD.filter(keyword => !resumeSet.has(keyword));
+  const matchPercentage = Math.round((matchedKeywords.length / uniqueJD.length) * 100);
+  
+  // Weighted scoring
+  let weightedScore = 0;
+  let totalWeight = 0;
+  
+  for (const keyword of uniqueJD) {
+    const weight = getKeywordWeight(keyword);
+    totalWeight += weight;
+    if (resumeSet.has(keyword)) {
+      weightedScore += weight;
     }
   }
+  
+  const finalScore = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : matchPercentage;
+  
+  return {
+    score: finalScore,
+    totalKeywords: uniqueJD.length,
+    matchingKeywords: matchedKeywords.length,
+    matchPercentage: matchPercentage,
+    missingKeywords: missingKeywords.slice(0, 20),
+    matchedKeywords: matchedKeywords.slice(0, 20)
+  };
+}
 
-  /**
-   * Analyze resume against job description with AI enhancement
-   * @route POST /resume/analyze
-   */
-  async analyze(req, res, next) {
-    const startTime = Date.now();
+// Get keyword importance weight
+function getKeywordWeight(keyword) {
+  const highPriority = ['react', 'node', 'python', 'javascript', 'typescript', 'java', 'aws', 'docker', 'kubernetes', 'sql'];
+  const mediumPriority = ['mongodb', 'postgresql', 'mysql', 'git', 'api', 'rest', 'graphql', 'express'];
+  
+  if (highPriority.includes(keyword.toLowerCase())) return 3;
+  if (mediumPriority.includes(keyword.toLowerCase())) return 2;
+  return 1;
+}
+
+// Generate AI-like suggestions
+function generateSuggestions(atsResult) {
+  const { score, missingKeywords, matchedKeywords, totalKeywords } = atsResult;
+  
+  const suggestions = {
+    strengths: [],
+    weaknesses: [],
+    missingKeywords: missingKeywords.slice(0, 15),
+    optimizationTips: [],
+    overallAssessment: ''
+  };
+  
+  // Generate strengths
+  if (matchedKeywords.length > 5) {
+    suggestions.strengths.push(`Strong keyword alignment with ${matchedKeywords.length} relevant skills`);
+  }
+  if (score >= 70) {
+    suggestions.strengths.push('Excellent overall match with job requirements');
+  } else if (score >= 50) {
+    suggestions.strengths.push('Good foundation with room for improvement');
+  }
+  suggestions.strengths.push('Clear resume structure and formatting');
+  
+  // Generate weaknesses
+  if (missingKeywords.length > 10) {
+    suggestions.weaknesses.push(`Missing ${missingKeywords.length} key skills from the job description`);
+  }
+  if (score < 50) {
+    suggestions.weaknesses.push('Low keyword match - resume needs significant optimization');
+  }
+  suggestions.weaknesses.push('Consider adding more quantifiable achievements');
+  
+  // Generate optimization tips
+  if (missingKeywords.length > 0) {
+    suggestions.optimizationTips.push(`Add these keywords: ${missingKeywords.slice(0, 5).join(', ')}`);
+  }
+  suggestions.optimizationTips.push('Use bullet points with action verbs (e.g., "Developed", "Led", "Created")');
+  suggestions.optimizationTips.push('Quantify your achievements with numbers and percentages');
+  suggestions.optimizationTips.push('Include a dedicated skills section with relevant technologies');
+  suggestions.optimizationTips.push('Tailor your resume summary for each job application');
+  suggestions.optimizationTips.push('Use standard section headings (Experience, Education, Skills)');
+  
+  // Generate overall assessment
+  if (score >= 80) {
+    suggestions.overallAssessment = 'Excellent match! Your resume is well-optimized for this position. Minor improvements suggested for perfection.';
+  } else if (score >= 60) {
+    suggestions.overallAssessment = `Good match! Your resume matches ${matchedKeywords.length} out of ${totalKeywords} key skills. Add the missing keywords to significantly improve your chances.`;
+  } else if (score >= 40) {
+    suggestions.overallAssessment = 'Average match. Consider significant revision to include more relevant keywords and restructure your resume for better ATS compatibility.';
+  } else {
+    suggestions.overallAssessment = 'Your resume needs substantial optimization. Review the job description carefully and incorporate more relevant keywords and skills.';
+  }
+  
+  return suggestions;
+}
+
+// ============ CONTROLLER METHODS (EXPORTED) ============
+
+// @desc    Upload and parse resume PDF
+// @route   POST /resume/upload
+export const uploadResume = async (req, res) => {
+  try {
+    console.log('Upload request received');
+    console.log('File:', req.file);
     
-    try {
-      const { resumeText, jobDescription, fileName } = req.body;
-
-      // Validate input
-      if (!resumeText || !jobDescription) {
-        return res.status(400).json(
-          formatApiResponse(false, null, 'Resume text and job description are required')
-        );
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please upload a PDF file'
+      });
+    }
+    
+    const text = await parsePDF(req.file.buffer);
+    
+    if (!text || text.length < 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Could not extract meaningful text from the PDF. Please ensure it contains readable text.'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        text: text,
+        preview: text.substring(0, 500),
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        wordCount: text.split(/\s+/).length
       }
+    });
+  } catch (error) {
+    console.error('Upload error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
 
-      // ========== 1. EXTRACT KEYWORDS ==========
-      const jdKeywords = KeywordService.extract(jobDescription);
-      const resumeKeywords = KeywordService.extract(resumeText);
-      
-      // Get technical keywords for enhanced analysis
-      const jdTechKeywords = KeywordService.extractTechKeywords(jobDescription);
-      const resumeTechKeywords = KeywordService.extractTechKeywords(resumeText);
-      
-      // Extract phrases for better context
-      const jdPhrases = KeywordService.extractPhrases(jobDescription);
-      const resumePhrases = KeywordService.extractPhrases(resumeText);
-
-      // ========== 2. CALCULATE ATS SCORE ==========
-      const atsResult = ATSService.calculateScore(jdKeywords, resumeKeywords);
-      
-      // ========== 3. GET AI-POWERED ANALYSIS FROM GEMINI ==========
-      let aiAnalysis = null;
-      let usedAIFallback = false;
-      let aiError = null;
-      
-      if (GeminiService.isAvailable()) {
-        try {
-          logger.info('Requesting Gemini AI analysis...');
-          aiAnalysis = await GeminiService.analyzeResume(resumeText, jobDescription);
-          logger.info('Gemini AI analysis completed successfully');
-        } catch (error) {
-          aiError = error.message;
-          usedAIFallback = true;
-          logger.error(`Gemini analysis failed: ${error.message}`);
-        }
-      } else {
-        usedAIFallback = true;
-        logger.warn('Gemini AI not available, using fallback analysis');
-      }
-
-      // ========== 4. GENERATE SUGGESTIONS (AI or Fallback) ==========
-      let suggestions;
-      
-      if (aiAnalysis && !usedAIFallback) {
-        // Use AI-generated suggestions
-        suggestions = {
-          // AI-generated content
-          executive_summary: aiAnalysis.executive_summary || null,
-          strengths: aiAnalysis.strengths || [],
-          weaknesses: aiAnalysis.weaknesses || [],
-          missing_keywords: aiAnalysis.missing_keywords || atsResult.missingKeywords,
-          keyword_suggestions: aiAnalysis.keyword_suggestions || {
-            skills_to_add: [],
-            tools_to_add: [],
-            certifications_to_add: []
-          },
-          optimization_tips: aiAnalysis.optimization_tips || [],
-          bullet_point_improvements: aiAnalysis.bullet_point_improvements || [],
-          formatting_advice: aiAnalysis.formatting_advice || null,
-          overall_assessment: aiAnalysis.overall_assessment || null,
-          
-          // Enhanced ATS data
-          compatibility_score: aiAnalysis.compatibility_score || atsResult.score,
-          ats_score: atsResult.score,
-          
-          // Metadata
-          ai_enhanced: true,
-          ai_model: 'gemini-2.0-flash-exp'
-        };
-      } else {
-        // Use fallback suggestions
-        const fallbackSuggestions = ATSService.generateSuggestions(
-          atsResult.score,
-          atsResult.missingKeywords,
-          atsResult.matchedKeywords
-        );
-        
-        suggestions = {
-          executive_summary: `Your resume matches ${atsResult.matchingKeywords} out of ${atsResult.totalKeywords} key skills from the job description.`,
-          strengths: fallbackSuggestions.strengths || [],
-          weaknesses: fallbackSuggestions.weaknesses || [],
-          missing_keywords: atsResult.missingKeywords,
-          keyword_suggestions: {
-            skills_to_add: atsResult.missingKeywords.filter(k => !jdTechKeywords.includes(k)).slice(0, 5),
-            tools_to_add: jdTechKeywords.filter(k => !resumeTechKeywords.includes(k)).slice(0, 5),
-            certifications_to_add: []
-          },
-          optimization_tips: fallbackSuggestions.optimizationTips || [],
-          bullet_point_improvements: fallbackSuggestions.bullet_point_improvements || [],
-          formatting_advice: "Use standard section headings (Experience, Education, Skills) for better ATS parsing. Avoid tables and complex formatting.",
-          overall_assessment: fallbackSuggestions.overallAssessment || "",
-          compatibility_score: atsResult.score,
-          ats_score: atsResult.score,
-          ai_enhanced: false,
-          ai_error: aiError
-        };
-      }
-
-      // ========== 5. PREPARE RESPONSE DATA ==========
-      const resumeStats = PDFService.getTextStats(resumeText);
-      const jdStats = PDFService.getTextStats(jobDescription);
-
-      // Calculate score grade
-      const getScoreGrade = (score) => {
-        if (score >= 80) return { grade: 'A+', label: 'Excellent', color: '#10b981' };
-        if (score >= 60) return { grade: 'A', label: 'Good', color: '#3b82f6' };
-        if (score >= 40) return { grade: 'B', label: 'Average', color: '#f59e0b' };
-        return { grade: 'C', label: 'Needs Improvement', color: '#ef4444' };
-      };
-
-      const scoreGrade = getScoreGrade(atsResult.score);
-
-      const result = {
-        // Score information
+// @desc    Analyze resume against job description
+// @route   POST /resume/analyze
+export const analyzeResume = async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { resumeText, jobDescription, fileName } = req.body;
+    
+    if (!resumeText || !jobDescription) {
+      return res.status(400).json({
+        success: false,
+        error: 'Resume text and job description are required'
+      });
+    }
+    
+    // Extract keywords
+    const jdKeywords = extractKeywords(jobDescription);
+    const resumeKeywords = extractKeywords(resumeText);
+    
+    // Calculate ATS score
+    const atsResult = calculateATSScore(jdKeywords, resumeKeywords);
+    
+    // Generate suggestions
+    const suggestions = generateSuggestions(atsResult);
+    
+    // Prepare response
+    const result = {
+      success: true,
+      data: {
         atsScore: atsResult.score,
-        scoreGrade: scoreGrade.grade,
-        scoreLabel: scoreGrade.label,
-        scoreColor: scoreGrade.color,
-        
-        // Keyword analysis
         keywordAnalysis: {
           totalKeywords: atsResult.totalKeywords,
           matchingKeywords: atsResult.matchingKeywords,
           matchPercentage: atsResult.matchPercentage,
           missingKeywords: atsResult.missingKeywords,
-          matchedKeywords: atsResult.matchedKeywords,
-          techKeywords: {
-            found: resumeTechKeywords,
-            missing: jdTechKeywords.filter(k => !resumeTechKeywords.includes(k)),
-            all_jd_tech: jdTechKeywords
-          },
-          phrases: {
-            jd_phrases: jdPhrases.slice(0, 10),
-            resume_phrases: resumePhrases.slice(0, 10)
-          }
+          matchedKeywords: atsResult.matchedKeywords
         },
-        
-        // AI-powered suggestions
         suggestions: suggestions,
-        
-        // Resume and JD metadata
         metadata: {
-          resume: {
-            wordCount: resumeStats.wordCount,
-            characterCount: resumeStats.characterCount,
-            sentenceCount: resumeStats.sentenceCount,
-            estimatedReadTime: resumeStats.estimatedReadTime
-          },
-          jobDescription: {
-            wordCount: jdStats.wordCount,
-            characterCount: jdStats.characterCount,
-            sentenceCount: jdStats.sentenceCount,
-            estimatedReadTime: jdStats.estimatedReadTime
-          },
           processingTime: Date.now() - startTime,
-          aiEnhanced: !usedAIFallback
-        },
-        
-        // Timestamp
-        analyzedAt: new Date().toISOString()
-      };
-
-      // ========== 6. SAVE TO DATABASE ==========
+          resumeWordCount: resumeText.split(/\s+/).length,
+          jdWordCount: jobDescription.split(/\s+/).length
+        }
+      }
+    };
+    
+    // Save to database if user is authenticated
+    if (req.user) {
       const resume = new Resume({
         userId: req.user.id,
         fileName: fileName || 'Uploaded Resume',
-        originalText: truncateText(resumeText, 5000),
-        jdText: truncateText(jobDescription, 3000),
+        originalText: resumeText.substring(0, 5000),
+        jdText: jobDescription.substring(0, 3000),
         atsScore: atsResult.score,
-        scoreGrade: scoreGrade.grade,
         keywordAnalysis: {
           totalKeywords: atsResult.totalKeywords,
           matchingKeywords: atsResult.matchingKeywords,
-          matchingPercentage: atsResult.matchPercentage,
+          matchPercentage: atsResult.matchPercentage,
           missingKeywords: atsResult.missingKeywords,
           matchedKeywords: atsResult.matchedKeywords
         },
-        suggestions: {
-          strengths: suggestions.strengths,
-          weaknesses: suggestions.weaknesses,
-          missingKeywords: suggestions.missing_keywords,
-          optimizationTips: suggestions.optimization_tips,
-          overallAssessment: suggestions.overall_assessment
-        },
-        metadata: {
-          wordCount: resumeStats.wordCount,
-          pageCount: 1,
-          readabilityScore: null,
-          aiEnhanced: !usedAIFallback
-        },
-        processingTime: Date.now() - startTime,
-        status: RESUME_STATUS.COMPLETED
+        suggestions: suggestions,
+        processingTime: Date.now() - startTime
       });
-
+      
       await resume.save();
-
-      // ========== 7. UPDATE USER ANALYTICS ==========
-      await req.user.updateAnalytics(atsResult.score);
-
-      // ========== 8. LOG AND RESPOND ==========
-      logger.info(`Resume analyzed for user ${req.user.id}: Score ${atsResult.score}, AI Enhanced: ${!usedAIFallback}, Processing Time: ${Date.now() - startTime}ms`);
-
-      res.json(
-        formatApiResponse(true, result, 'Analysis completed successfully')
-      );
-
-    } catch (error) {
-      logger.error(`Analysis error: ${error.message}`);
-      logger.error(`Stack: ${error.stack}`);
-      next(error);
+      result.data.id = resume._id;
     }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Analysis error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+};
 
-  /**
-   * Get user's resume analysis history with pagination
-   * @route GET /resume/history
-   */
-  async getHistory(req, res, next) {
-    try {
-      const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-      
-      const pageNum = Math.max(1, parseInt(page));
-      const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-      const skip = (pageNum - 1) * limitNum;
-      const sortDirection = sortOrder === 'asc' ? 1 : -1;
-
-      const [resumes, total] = await Promise.all([
-        Resume.find({ userId: req.user.id })
-          .sort({ [sortBy]: sortDirection })
-          .skip(skip)
-          .limit(limitNum)
-          .select('fileName atsScore scoreGrade createdAt metadata.processingTime'),
-        Resume.countDocuments({ userId: req.user.id })
-      ]);
-
-      // Calculate statistics
-      const stats = await Resume.getUserStats(req.user.id);
-
-      res.json(
-        formatApiResponse(true, {
-          resumes,
-          statistics: {
-            totalAnalyzed: stats.totalAnalyzed || 0,
-            averageScore: Math.round(stats.averageScore || 0),
-            highestScore: stats.highestScore || 0,
-            lowestScore: stats.lowestScore || 0
-          },
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total,
-            pages: Math.ceil(total / limitNum),
-            hasNext: pageNum * limitNum < total,
-            hasPrev: pageNum > 1
-          }
-        })
-      );
-
-    } catch (error) {
-      logger.error(`History error: ${error.message}`);
-      next(error);
-    }
+// @desc    Get user's resume analysis history
+// @route   GET /resume/history
+export const getResumeHistory = async (req, res) => {
+  try {
+    const resumes = await Resume.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .select('fileName atsScore keywordAnalysis suggestions.optimizationTips createdAt');
+    
+    res.json({
+      success: true,
+      count: resumes.length,
+      data: resumes
+    });
+  } catch (error) {
+    console.error('History error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+};
 
-  /**
-   * Get single resume analysis by ID
-   * @route GET /resume/:id
-   */
-  async getResumeById(req, res, next) {
-    try {
-      const resume = await Resume.findOne({
-        _id: req.params.id,
-        userId: req.user.id
+// @desc    Get single resume by ID
+// @route   GET /resume/:id
+export const getResumeById = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+    
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        error: 'Resume analysis not found'
       });
-
-      if (!resume) {
-        return res.status(404).json(
-          formatApiResponse(false, null, 'Resume analysis not found')
-        );
-      }
-
-      res.json(
-        formatApiResponse(true, resume)
-      );
-
-    } catch (error) {
-      logger.error(`Get resume error: ${error.message}`);
-      next(error);
     }
+    
+    res.json({
+      success: true,
+      data: resume
+    });
+  } catch (error) {
+    console.error('Get resume error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+};
 
-  /**
-   * Delete resume analysis
-   * @route DELETE /resume/:id
-   */
-  async deleteResume(req, res, next) {
-    try {
-      const resume = await Resume.findOneAndDelete({
-        _id: req.params.id,
-        userId: req.user.id
+// @desc    Delete resume analysis
+// @route   DELETE /resume/:id
+export const deleteResume = async (req, res) => {
+  try {
+    const resume = await Resume.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+    
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        error: 'Resume analysis not found'
       });
-
-      if (!resume) {
-        return res.status(404).json(
-          formatApiResponse(false, null, 'Resume analysis not found')
-        );
-      }
-
-      logger.info(`Resume deleted: ${resume._id} by user ${req.user.id}`);
-
-      res.json(
-        formatApiResponse(true, null, 'Resume analysis deleted successfully')
-      );
-
-    } catch (error) {
-      logger.error(`Delete error: ${error.message}`);
-      next(error);
     }
+    
+    res.json({
+      success: true,
+      message: 'Resume analysis deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-
-  /**
-   * Get resume analysis statistics for dashboard
-   * @route GET /resume/stats
-   */
-  async getStats(req, res, next) {
-    try {
-      const stats = await Resume.getUserStats(req.user.id);
-      
-      // Get recent activity (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const recentActivity = await Resume.find({
-        userId: req.user.id,
-        createdAt: { $gte: thirtyDaysAgo }
-      }).select('atsScore createdAt').sort({ createdAt: 1 });
-
-      // Calculate score trends
-      const scoreTrend = recentActivity.map(item => ({
-        date: item.createdAt.toISOString().split('T')[0],
-        score: item.atsScore
-      }));
-
-      res.json(
-        formatApiResponse(true, {
-          overall: {
-            totalAnalyzed: stats.totalAnalyzed || 0,
-            averageScore: Math.round(stats.averageScore || 0),
-            highestScore: stats.highestScore || 0,
-            lowestScore: stats.lowestScore || 0
-          },
-          recentActivity: {
-            count: recentActivity.length,
-            last30DaysAverage: recentActivity.length > 0 
-              ? Math.round(recentActivity.reduce((sum, r) => sum + r.atsScore, 0) / recentActivity.length)
-              : 0
-          },
-          scoreTrend: scoreTrend,
-          memberSince: req.user.createdAt
-        })
-      );
-
-    } catch (error) {
-      logger.error(`Stats error: ${error.message}`);
-      next(error);
-    }
-  }
-
-  /**
-   * Re-analyze an existing resume with updated job description
-   * @route POST /resume/:id/reanalyze
-   */
-  async reanalyze(req, res, next) {
-    try {
-      const { jobDescription } = req.body;
-      
-      if (!jobDescription) {
-        return res.status(400).json(
-          formatApiResponse(false, null, 'Job description is required for re-analysis')
-        );
-      }
-
-      const existingResume = await Resume.findOne({
-        _id: req.params.id,
-        userId: req.user.id
-      });
-
-      if (!existingResume) {
-        return res.status(404).json(
-          formatApiResponse(false, null, 'Resume analysis not found')
-        );
-      }
-
-      // Create new analysis request
-      const newReq = {
-        body: {
-          resumeText: existingResume.originalText,
-          jobDescription: jobDescription,
-          fileName: existingResume.fileName
-        },
-        user: req.user
-      };
-
-      const newRes = {
-        json: (data) => data,
-        status: (code) => ({ json: (data) => ({ ...data, statusCode: code }) })
-      };
-
-      // Call analyze method
-      const result = await this.analyze(newReq, newRes, next);
-      
-      res.json(
-        formatApiResponse(true, result, 'Re-analysis completed successfully')
-      );
-
-    } catch (error) {
-      logger.error(`Re-analysis error: ${error.message}`);
-      next(error);
-    }
-  }
-}
-
-export default new ResumeController();
+};
