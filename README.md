@@ -1,6 +1,4 @@
-# 📄 Resume-Worthy README.md for ResumeScore
 
-Here's a professional README file that showcases your project effectively for your resume/portfolio.
 
 ## 📌 Overview
 
