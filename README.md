@@ -2,14 +2,6 @@
 
 Here's a professional README file that showcases your project effectively for your resume/portfolio.
 
-```markdown
-# 🎯 ResumeScore - AI-Powered Resume ATS Analyzer
-
-[![Live Demo](https://img.shields.io/badge/Live-Demo-4CAF50?style=for-the-badge&logo=vercel&logoColor=white)](https://your-frontend-url.netlify.app/)
-[![API](https://img.shields.io/badge/API-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://your-backend-url.up.railway.app/)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/yourusername/resume-ats-analyzer)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
-
 ## 📌 Overview
 
 **ResumeScore** is a full-stack web application that helps job seekers optimize their resumes for Applicant Tracking Systems (ATS). Using AI-powered analysis, it provides real-time feedback, keyword matching, and actionable recommendations to improve resume compatibility.
@@ -407,8 +399,6 @@ If you found this project helpful, please give it a ⭐ on GitHub!
 
 **Built with ❤️ by Hitheesha**
 ```
-
----
 
 ## 📋 What to Replace
 
